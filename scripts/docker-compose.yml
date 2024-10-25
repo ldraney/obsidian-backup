@@ -1,0 +1,13 @@
+version: '3'
+services:
+  backup-to-gcs:
+    build: .
+    volumes:
+      - ${BACKUP_DIR}:/path/to/local/backups
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/service-account.json:ro
+    # environment:
+    #   - GCS_BUCKET
+    #   - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
+    #   - BACKUP_DIR=/path/to/local/backups
+    env_file:
+      - .env

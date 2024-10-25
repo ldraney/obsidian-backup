@@ -1,0 +1,151 @@
+# Setting Up GCS Backup and Running with Docker Compose
+
+This guide walks you through setting up the necessary environment variables for your GCS backup system, storing them securely, and running your Docker container.
+
+## Prerequisites
+
+- A Google Cloud Platform account
+- A project created in Google Cloud Platform
+- Docker and Docker Compose installed on your local machine
+
+## Steps
+
+### 1. Set Up Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Open Cloud Shell by clicking on the terminal icon (>_) in the top right corner
+
+3. Set your project ID:
+   ```bash
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+   Replace `YOUR_PROJECT_ID` with your actual project ID.
+
+### 2. Create a Google Cloud Storage Bucket
+
+1. Create a bucket:
+   ```bash
+   gsutil mb gs://YOUR_BUCKET_NAME
+   ```
+   Replace `YOUR_BUCKET_NAME` with a globally unique name for your bucket.
+
+2. Note down the bucket name for later use.
+
+### 3. Create a Service Account and Download Credentials
+
+1. Create a service account:
+   ```bash
+   gcloud iam service-accounts create gcs-backup-sa --display-name "GCS Backup Service Account"
+   ```
+
+2. Grant the service account the Storage Admin role:
+   ```bash
+   gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+     --member="serviceAccount:gcs-backup-sa@$(gcloud config get-value project).iam.gserviceaccount.com" \
+     --role="roles/storage.admin"
+   ```
+
+3. Create and download the key file:
+   ```bash
+   gcloud iam service-accounts keys create ~/gcs-backup-sa-key.json \
+     --iam-account=gcs-backup-sa@$(gcloud config get-value project).iam.gserviceaccount.com
+   ```
+
+4. Download the key file to your local machine:
+   - In Cloud Shell, click on the three-dot menu and select "Download file"
+   - Enter the path: `~/gcs-backup-sa-key.json`
+   - Note down the path where you saved the file on your local machine
+
+### 4. Set Up Environment Variables in ~/.bash_secrets
+
+1. Create or open `~/.bash_secrets` file:
+   ```bash
+   nano ~/.bash_secrets
+   ```
+
+2. Add the following lines to the file, replacing the values with your actual data:
+   ```bash
+   export GCS_BUCKET=your-bucket-name
+   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcs-backup-sa-key.json
+   export BACKUP_DIR=/path/to/your/local/backup/directory
+   ```
+
+3. Save and exit the file (in nano, press CTRL+X, then Y, then Enter)
+
+4. Make the file executable:
+   ```bash
+   chmod +x ~/.bash_secrets
+   ```
+
+5. Add the following line to your `~/.bashrc` or `~/.zshrc` file (depending on your shell):
+   ```bash
+   source ~/.bash_secrets
+   ```
+
+6. Reload your shell configuration:
+   ```bash
+   source ~/.bashrc  # or source ~/.zshrc if you're using Zsh
+   ```
+
+### 5. Prepare Your Docker Environment
+
+1. Create a `.env` file in your project directory:
+   ```bash
+   cat << EOF > .env
+   GCS_BUCKET=\$GCS_BUCKET
+   GOOGLE_APPLICATION_CREDENTIALS=\$GOOGLE_APPLICATION_CREDENTIALS
+   BACKUP_DIR=\$BACKUP_DIR
+   EOF
+   ```
+
+2. Ensure your `docker-compose.yml` file is set up correctly (refer to the previous message for the content)
+
+### 6. Run Your Docker Container
+
+1. Navigate to your project directory containing the `docker-compose.yml` file
+
+2. Run the following command to start your container:
+   ```bash
+   docker-compose up
+   ```
+
+## Verifying Your Setup
+
+To verify that your setup is correct, you can try uploading a test file to your bucket:
+
+1. Create a test file:
+   ```bash
+   echo "Test file" > test.txt
+   ```
+
+2. Upload the file to your bucket:
+   ```bash
+   gsutil cp test.txt gs://${GCS_BUCKET}/
+   ```
+
+3. Verify the file was uploaded:
+   ```bash
+   gsutil ls gs://${GCS_BUCKET}/
+   ```
+
+You should see `test.txt` listed in the output.
+
+## Security Considerations
+
+- Keep your `~/.bash_secrets` file secure and don't share it.
+- Regularly rotate your service account keys.
+- Ensure `.env` is listed in your `.gitignore` file to prevent committing sensitive information.
+
+## Troubleshooting
+
+- If your environment variables aren't being recognized, make sure you've sourced your `~/.bashrc` or `~/.zshrc` file after modifying it.
+- Check that the paths in your environment variables are correct and accessible.
+- Ensure your Google Cloud service account has the necessary permissions.
+
+Remember to stop your Docker containers when you're done:
+
+```bash
+docker-compose down
+```
+
+This setup allows you to securely manage your environment variables and easily run your GCS backup system using Docker Compose.
